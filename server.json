@@ -1,0 +1,31 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Agaveis/hiberden-mcp",
+  "title": "Hiberden",
+  "description": "Read and verify your local Hiberden media archive catalog (3-2-1 coverage across LTO tape, local disk, NAS, and S3-compatible cloud) from an AI assistant.",
+  "version": "1.1.0",
+  "websiteUrl": "https://hiberden.app",
+  "repository": {
+    "url": "https://github.com/Agaveis/hiberden-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/Agaveis/hiberden-mcp/releases/download/v1.1.0/hiberden-1.1.0.mcpb",
+      "version": "1.1.0",
+      "fileSha256": "51954fcc5402bed7d2d50ea92443aafc99fe3bae0ce4ed7f2facf7f9cfd24497",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "HIBERDEN_DB",
+          "description": "Path to the Hiberden catalog.db. Leave unset to use the default location (%LOCALAPPDATA%\\Hiberden\\catalog.db), which is correct for a normal Hiberden install. Set this only if your catalog lives somewhere else.",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
