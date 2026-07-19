@@ -1,0 +1,138 @@
+{
+  "manifest_version": "0.3",
+  "name": "hiberden",
+  "display_name": "Hiberden",
+  "version": "1.1.0",
+  "description": "Read and verify your local Hiberden media archive catalog (3-2-1 coverage across LTO tape, local disk, NAS, and S3-compatible cloud) from an AI assistant.",
+  "long_description": "Hiberden is a local Windows desktop app for 3-2-1 media archival: it keeps your photo and video archives on LTO tape, local disk, NAS, and S3-compatible cloud, and tracks the coverage of each archive in a local SQLite catalog. This bundle installs the Hiberden MCP server, which exposes that catalog to your AI assistant so you can ask plain-language questions (\"what is my 3-2-1 coverage?\", \"which projects are unprotected and where do their copies live?\") and get an answer grounded in the live catalog.\n\nThe default surface is read and verify: fourteen tools, thirteen that read the catalog (projects, archives, collections, coverage roll-up, archive detail, per-archive file manifests, destinations, tapes, tape detail, recent activity, recent jobs with recorded failure reasons, file search, and a library-wide inventory/capacity roll-up) and one, verify_copy, that physically re-reads a copy off its medium, re-hashes it, and compares the result to the archive's recorded SHA-256 before stamping the copy Verified, Failed, or Missing. verify_copy is the only default tool that writes, and it only ever writes a status after a genuine read-back, so even a manipulated assistant cannot fabricate a Verified result. Catalog-management and delete tools exist behind an explicit permission tier that is off by default and only changeable in the Hiberden desktop app's settings.\n\nIn the default mode the server performs no network input or output. It opens the local catalog per tool call (with WAL and a busy timeout) so the desktop app and the server can run at the same time. There is no model and no API key inside the server: your AI client brings the language model, and the server only answers tool calls against your own catalog. The server never sends data to Hiberden or any third party.",
+  "author": {
+    "name": "Agaveis",
+    "url": "https://hiberden.app"
+  },
+  "homepage": "https://hiberden.app",
+  "documentation": "https://hiberden.app/kb/connect-an-ai-assistant",
+  "support": "https://hiberden.app/mcp",
+  "icon": "icon.png",
+  "license": "MIT",
+  "keywords": [
+    "archive",
+    "backup",
+    "3-2-1",
+    "lto",
+    "tape",
+    "ltfs",
+    "verification",
+    "sha-256",
+    "media",
+    "nas",
+    "s3"
+  ],
+  "privacy_policies": [
+    "https://hiberden.app/mcp/privacy"
+  ],
+  "server": {
+    "type": "binary",
+    "entry_point": "server/hiberden-mcp",
+    "mcp_config": {
+      "command": "${__dirname}/server/hiberden-mcp",
+      "args": [],
+      "env": {
+        "HIBERDEN_DB": "${user_config.catalog_db_path}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "description": "List the top-level projects (containers). Each project owns a protection policy and holds archives; this returns the project's name, policy, archive count, and a roll-up of how many of its archives sit in each coverage state. For the individual archives, use list_archives.",
+      "name": "list_projects"
+    },
+    {
+      "description": "List the archives (the leaves actually written to media). Each archive's project, size, SHA-256, 3-2-1 coverage, and every Destination it is stored at (Destination + kind + status) are included. Optionally narrow with project_id (one container), collection_id (one Collection within a project), and/or name (case-insensitive substring, e.g. \"johnson\" to find the Johnson family album).",
+      "name": "list_archives"
+    },
+    {
+      "description": "List the Collections inside one project. Collections are the middle tier of the Project > Collection > Archive model: catalog-only organizational nodes (never written to media). Each entry has the Collection's id, name, parent_collection_id (null at the top level), and the count of archives filed directly in it. Pass a Collection's id to list_archives (collection_id) to see its contents.",
+      "name": "list_collections"
+    },
+    {
+      "description": "The headline 3-2-1 coverage roll-up across the whole library: the total archive count and how many archives are unconfigured, unprotected, in progress, at risk, or fully covered.",
+      "name": "coverage_status"
+    },
+    {
+      "description": "Full detail for one archive: its project, size, SHA-256, legacy MD5 (if imported), coverage, and where it is stored, with each Destination's kind, status, path, and verification timestamps.",
+      "name": "archive_detail"
+    },
+    {
+      "description": "List configured destinations (Tape, LocalFs, NAS, Cloud) with their id, slot, kind, name, and enabled/retired state.",
+      "name": "list_destinations"
+    },
+    {
+      "description": "List known tapes with serial, volume label, uuid, capacity, used bytes, last verified time, and how many archives are stored on each.",
+      "name": "list_tapes"
+    },
+    {
+      "description": "Everything about one tape, identified by its serial (the barcode operators read off the cartridge): the tape's label, capacity, used bytes, last verified time, the number of archives stored on it, and the list of archives that are stored on this cartridge (id, name, project_id, size). Answers \"what is on tape HIB001L9?\".",
+      "name": "tape_detail"
+    },
+    {
+      "description": "Recent storage activity across the library, newest first: for each event, the archive, its Destination, status, and when it was written and last verified. This is copy-level storage history; for background job runs and recorded failure reasons use list_jobs.",
+      "name": "recent_activity"
+    },
+    {
+      "description": "Find a file by name or path fragment across EVERY archive at once, and report which archive it is in and every Destination it is stored in (local folder, NAS, tape, cloud) with each Destination's status. Answers \"is <filename> saved, and where?\". Case-insensitive substring match on the file path; pass a filename or a path fragment.",
+      "name": "find_file"
+    },
+    {
+      "description": "The file manifest of one archive from the catalog index: each file's relative path, size, and SHA-256 (sha256 is null for entries indexed before per-file capture). Paginated for very large archives. Combine with archive_detail to produce client-ready deliverable lists and per-file checksum manifests. Answers come from the catalog index, not by re-reading the archive; a one-time index backfill may read a LOCAL copy of an archive that pre-dates the index. If the archive has data but no index could be built (e.g. a legacy tape-only import), the response says indexed: false with a note — that is \"manifest unavailable\", NEVER \"the archive is empty\".",
+      "name": "list_archive_files"
+    },
+    {
+      "description": "Recent background jobs (saves, verifies, restores), newest first: verb, state, archive, destination, bytes done/total, timestamps, and — for failed or interrupted jobs — the recorded failure reason. Answers \"did last night's backup finish?\" and \"why did the upload fail?\" without opening the app.",
+      "name": "list_jobs"
+    },
+    {
+      "description": "One-call inventory and capacity roll-up for the whole library: project/archive/tape/job counts, total archived bytes, stored copies by status, destinations by kind, and tape capacity vs. use. The fast starting point for utilization reports and health summaries; for the 3-2-1 protection view use coverage_status.",
+      "name": "catalog_stats"
+    },
+    {
+      "description": "Re-read an archive from one of its destinations, re-hash it, and compare to the archive's recorded SHA-256, then mark it Verified on a match (or Failed on a mismatch, Missing if the file is gone). Identify which stored archive to check by archive_id + destination_id. Works for disk and NAS destinations, and tape destinations (the cartridge is mounted and read back); cloud read-back runs in the desktop app, not here. NOTE: this is the only tool that writes, and it only ever does so after a genuine read-back.",
+      "name": "verify_copy"
+    }
+  ],
+  "tools_generated": false,
+  "prompts": [
+    {
+      "name": "coverage_summary",
+      "description": "Summarize the library's overall 3-2-1 coverage and flag what is at risk.",
+      "text": "Using the Hiberden tools, get my library-wide 3-2-1 coverage roll-up, then tell me in plain language how protected my archives are overall and call out anything that is unprotected or at risk."
+    },
+    {
+      "name": "unprotected_projects",
+      "description": "List which projects are unprotected and where their copies currently live.",
+      "text": "Using the Hiberden tools, list my projects and their coverage, then for any project that is unprotected or at risk, tell me which destinations its archives have copies on and which copies are not yet verified."
+    },
+    {
+      "name": "verify_one_copy",
+      "description": "Verify a specific archive's copy on a destination by reading it back from the medium.",
+      "arguments": [
+        "archive",
+        "destination"
+      ],
+      "text": "Find the archive named ${arguments.archive} and the destination named ${arguments.destination} using the Hiberden tools, then run a read-back verification of that copy and report whether it verified, failed, or is missing."
+    }
+  ],
+  "prompts_generated": false,
+  "compatibility": {
+    "platforms": [
+      "win32"
+    ]
+  },
+  "user_config": {
+    "catalog_db_path": {
+      "type": "file",
+      "title": "Catalog database path (optional)",
+      "description": "Path to your Hiberden catalog.db. Leave blank to use the default location (%LOCALAPPDATA%\\Hiberden\\catalog.db), which is correct for a normal Hiberden install. Only set this if your catalog lives somewhere else.",
+      "required": false
+    }
+  }
+}
