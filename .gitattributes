@@ -1,0 +1,21 @@
+# Line endings are load-bearing here.
+#
+# This repo is authored on Windows but its artifacts run on Linux. A shell
+# script committed with CRLF has `#!/bin/sh\r` as its shebang, and the kernel
+# looks for an interpreter literally named "sh\r" — the container then dies
+# with the famously unhelpful:
+#
+#     exec /usr/local/bin/docker-entrypoint.sh: no such file or directory
+#
+# ...even though the file is plainly there. Caught 2026-07-22 when the image
+# built from a fresh clone (the build-time smoke test runs the binary
+# directly, so it passes; only the ENTRYPOINT path breaks).
+#
+# Force LF for everything a Linux system has to interpret.
+*.sh text eol=lf
+Dockerfile text eol=lf
+docker-entrypoint.sh text eol=lf
+
+# JSON manifests are read by tooling on both platforms; keep them stable too.
+*.json text eol=lf
+*.md text eol=lf
