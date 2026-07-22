@@ -1,6 +1,6 @@
 # Hiberden MCP Server: Privacy Policy
 
-**Last updated:** 2026-07-16
+**Last updated:** 2026-07-21
 
 ## Summary
 
@@ -36,16 +36,19 @@ the storage you have configured:
   duration of each tool call.
 - **Local disk and NAS file contents during a verify.** When you (through the
   assistant) run `verify_copy` on a disk or NAS copy, the server re-reads that
-  copy from the local file system or the network share and re-hashes it to
-  compare against the recorded SHA-256. The file is read locally; the contents
-  are not transmitted anywhere.
+  copy from the local file system or the network share and re-hashes it. In the
+  default `full` mode it compares against the recorded SHA-256, the recorded
+  BLAKE3, and the stored signature when one is present; in `fast` mode it
+  re-reads the same bytes and compares against the recorded BLAKE3 only. Either
+  way the file is read locally; the contents are not transmitted anywhere.
 - **Tape contents during a verify.** When you run `verify_copy` on a tape copy,
   the server mounts the cartridge and reads the copy back from tape to re-hash
   it. As with disk and NAS, the data is read locally and is not transmitted.
 
 The server returns only catalog facts and verify results (for example a status
-of Verified, Failed, or Missing) to the connected AI client over the local
-stdio channel. It does not return raw file contents.
+of Verified, Failed, or Missing, together with which hash algorithm the pass
+ran) to the connected AI client over the local stdio channel. It does not
+return raw file contents.
 
 ## What the server does NOT do
 
@@ -94,18 +97,23 @@ operating system and never travel through the AI or agent context.
 
 ## Write and configuration tools (off by default)
 
-The default permission level exposes read and verify tools only. Catalog
-management tools (creating projects and Collections, moving archives, creating
-local or NAS destinations, creating policies, adding or removing policy
-bindings, assigning a policy to a project, and retiring destinations) unlock
-only when you raise the LLM Command Permissions level inside the Hiberden
-desktop application (Settings → MCP). Tools that delete catalog entries
+The default permission level exposes read and verify tools only. It changes
+nothing about your setup; the only state it writes is the outcome of a
+verification you asked for (see `verify_copy` above). Catalog management tools
+unlock only when you raise the LLM Command Permissions level inside the Hiberden
+desktop application (Settings → MCP), in two steps: the Archive level adds
+creating projects and Collections, renaming them, and moving archives between
+them, and the Full level adds creating local or NAS destinations, retiring
+destinations, creating policies, adding or removing policy bindings, and
+assigning a policy to a project. Tools that delete catalog entries
 (projects, Collections, archives, copy records, destinations, policies)
 additionally require a separate delete override in the same settings panel.
 Every write or delete the assistant performs — and every refused attempt — is
 recorded in the catalog's local audit log together with the permission level in
-effect; that log stays on your machine like everything else. Even when enabled,
-these tools act only on your local catalog and local or NAS destinations. They
+effect. Completed verifications are recorded there too, including at the default
+level, naming the algorithm the pass ran. That log stays on your machine like
+everything else. Even when enabled, these tools act only on your local catalog
+and local or NAS destinations. They
 do not create cloud destinations and they send nothing to Hiberden or any third
 party.
 

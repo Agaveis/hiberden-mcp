@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "hiberden",
   "display_name": "Hiberden",
-  "version": "1.1.0",
+  "version": "1.2.1",
   "description": "Read and verify your local Hiberden media archive catalog (3-2-1 coverage across LTO tape, local disk, NAS, and S3-compatible cloud) from an AI assistant.",
   "long_description": "Hiberden is a local Windows desktop app for 3-2-1 media archival: it keeps your photo and video archives on LTO tape, local disk, NAS, and S3-compatible cloud, and tracks the coverage of each archive in a local SQLite catalog. This bundle installs the Hiberden MCP server, which exposes that catalog to your AI assistant so you can ask plain-language questions (\"what is my 3-2-1 coverage?\", \"which projects are unprotected and where do their copies live?\") and get an answer grounded in the live catalog.\n\nThe default surface is read and verify: fourteen tools, thirteen that read the catalog (projects, archives, collections, coverage roll-up, archive detail, per-archive file manifests, destinations, tapes, tape detail, recent activity, recent jobs with recorded failure reasons, file search, and a library-wide inventory/capacity roll-up) and one, verify_copy, that physically re-reads a copy off its medium, re-hashes it, and compares the result to the archive's recorded SHA-256 before stamping the copy Verified, Failed, or Missing. verify_copy is the only default tool that writes, and it only ever writes a status after a genuine read-back, so even a manipulated assistant cannot fabricate a Verified result. Catalog-management and delete tools exist behind an explicit permission tier that is off by default and only changeable in the Hiberden desktop app's settings.\n\nIn the default mode the server performs no network input or output. It opens the local catalog per tool call (with WAL and a busy timeout) so the desktop app and the server can run at the same time. There is no model and no API key inside the server: your AI client brings the language model, and the server only answers tool calls against your own catalog. The server never sends data to Hiberden or any third party.",
   "author": {
@@ -63,7 +63,7 @@
       "name": "archive_detail"
     },
     {
-      "description": "List configured destinations (Tape, LocalFs, NAS, Cloud) with their id, slot, kind, name, and enabled/retired state.",
+      "description": "Every configured Destination: id, slot, kind (tape, localfs, nas, cloud), display name, enabled and retired flags. Retired and disabled Destinations are included; the list is unfiltered. The stored config blob (path or credential reference) is not returned. Source of the destination_id taken by verify_copy and by the policy and destination write tools.",
       "name": "list_destinations"
     },
     {
@@ -95,7 +95,7 @@
       "name": "catalog_stats"
     },
     {
-      "description": "Re-read an archive from one of its destinations, re-hash it, and compare to the archive's recorded SHA-256, then mark it Verified on a match (or Failed on a mismatch, Missing if the file is gone). Identify which stored archive to check by archive_id + destination_id. Works for disk and NAS destinations, and tape destinations (the cartridge is mounted and read back); cloud read-back runs in the desktop app, not here. NOTE: this is the only tool that writes, and it only ever does so after a genuine read-back.",
+      "description": "Re-read an archive from one of its destinations and compare it to what was recorded. Default mode \"full\": re-hash SHA-256 plus the recorded BLAKE3 and the stored signature when present, then mark the copy Verified on a match (Failed on a mismatch, Missing if the file is gone) — the only pass that can promote, and the citable one. Optional mode \"fast\": a BLAKE3-only re-read that refreshes an already-Verified copy or exposes a mismatch but NEVER promotes (a matching fast pass on an unverified copy returns passed_unpromoted; an archive with no recorded fast hash falls back to a full pass with the reason surfaced). Results and audit rows name the algorithm that ran. Identify which stored archive to check by archive_id + destination_id. Works for disk and NAS destinations, and tape destinations (the cartridge is mounted and read back); cloud read-back runs in the desktop app, not here. NOTE: this is the only always-on tool that writes, and it only ever does so after a genuine read-back.",
       "name": "verify_copy"
     }
   ],
