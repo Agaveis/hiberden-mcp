@@ -64,7 +64,8 @@ The server reads the single catalog shared by the desktop app, the CLI, and this
 server. Path resolution:
 
 1. The `HIBERDEN_DB` environment variable, if set.
-2. Otherwise `%LOCALAPPDATA%\Hiberden\catalog.db`.
+2. Otherwise `%LOCALAPPDATA%\Hiberden\catalog.db` on Windows, or
+   `~/.hiberden/catalog.db` on Linux.
 
 The catalog is opened fresh per tool call (sub-millisecond) rather than held for
 the process lifetime. With WAL mode and a busy timeout, the desktop app and this
@@ -73,6 +74,40 @@ multi-process locking hazard.
 
 All diagnostics go to stderr. stdout carries the JSON-RPC channel; anything
 written to stdout that is not a JSON-RPC message corrupts the stream.
+
+## Linux headless kit (BETA)
+
+Linux binaries are published on the [releases](../../releases) page and at
+`cdn.hiberden.app`. They are built on Ubuntu 22.04, so they run on Ubuntu
+22.04+, Debian 12+, and equivalents; verified on `debian:bookworm-slim` and
+`ubuntu:22.04`.
+
+```sh
+curl -fsSLO https://cdn.hiberden.app/downloads/hiberden-cli-linux-x86_64
+curl -fsSLO https://cdn.hiberden.app/downloads/hiberden-cli-linux-x86_64.sha256
+sha256sum -c hiberden-cli-linux-x86_64.sha256      # verify before running it
+chmod +x hiberden-cli-linux-x86_64
+./hiberden-cli-linux-x86_64 --version
+```
+
+`hiberden-mcp-linux-x86_64` is the same connector as the Windows build. The
+CLI (`hiberden`) catalogs, archives, verifies and restores with no display
+server and no network — the whole point of the kit is that an air-gapped or
+headless machine can run it.
+
+**What BETA means here, precisely:**
+
+- **Licensing is not wired on Linux yet.** The kit is unlicensed and
+  unrestricted; entitlement arrives with Linux GA. Nothing you archive now
+  becomes unreadable later: the format and catalog are identical across
+  platforms.
+- **The desktop app is Windows-only today.** Linux is the CLI + connector.
+- **Tape on Linux is unproven on hardware.** The backend targets the
+  open-source LTFS implementation and has never run against a drive on any
+  platform. Use `HIBERDEN_TAPE_FAKE=1` to exercise the flows without one.
+- Archives are signed by a per-install Ed25519 identity stored under
+  `~/.hiberden/keys/` (owner-only). It is the same custody model as the OS
+  keyrings on other platforms, and no stronger: it is not hardware-backed.
 
 ## Setup
 
