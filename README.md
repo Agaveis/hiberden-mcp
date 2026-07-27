@@ -182,11 +182,12 @@ the separate AI client, and credential handling) are in
 
 ## Tape caveat
 
-Tape support has been validated on exactly one MagStor LTO-9 drive. The design
-never speaks SCSI directly and treats tape as a filesystem via LTFS tooling, so
-reading other LTFS generations is architecturally true but not yet broadly
-proven on real hardware. Do not read these notes as a guarantee for any specific
-drive or generation.
+Tape support is in beta and has not been validated on physical tape hardware in
+this implementation. The design never speaks SCSI directly and treats tape as a
+filesystem via LTFS tooling, so any tape the LTFS tooling can mount should work
+by construction. That is an architectural property, not a tested hardware
+matrix. Do not read these notes as a guarantee for any specific drive or
+generation.
 
 For testing without a drive, the tape backend can run against a fake backend:
 set `HIBERDEN_TAPE_FAKE=1` (and optionally `HIBERDEN_TAPE_FAKE_ROOT=<dir>` to

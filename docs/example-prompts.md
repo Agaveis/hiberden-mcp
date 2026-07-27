@@ -133,9 +133,9 @@ failed here: it was not checked here. That is honesty about scope, not a failure
 **"Re-verify the tape copy of archive 17."**
 Tool: `verify_copy` (tape). What happens: the cartridge is mounted and the copy
 is read back through the tape path, re-hashed, and compared. Good answer: a clear
-Verified or Failed with the computed versus expected SHA-256. (Tape read-back has
-been validated on one LTO-9 drive; behavior on other drives and generations is
-expected to work but is not broadly proven yet.)
+Verified or Failed with the computed versus expected SHA-256. (Tape support is in
+beta: the read-back path has not been validated on physical tape hardware in this
+implementation, so behavior on a real drive is expected but not yet proven.)
 
 **"Check that the local disk copy of the Garcia engagement gallery still
 matches."**
