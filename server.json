@@ -3,7 +3,7 @@
   "name": "io.github.Agaveis/hiberden-mcp",
   "title": "Hiberden",
   "description": "Read and verify your local media archive's 3-2-1 coverage across tape, disk, NAS, and cloud.",
-  "version": "1.2.1",
+  "version": "1.3.1",
   "websiteUrl": "https://hiberden.app",
   "repository": {
     "url": "https://github.com/Agaveis/hiberden-mcp",
@@ -12,9 +12,9 @@
   "packages": [
     {
       "registryType": "mcpb",
-      "identifier": "https://github.com/Agaveis/hiberden-mcp/releases/download/v1.2.1/hiberden-1.2.1.mcpb",
-      "version": "1.2.1",
-      "fileSha256": "8bd6eaf72b2373a7313147c8ff93664b8917f90e177401340ddadb0fe4a25e73",
+      "identifier": "https://github.com/Agaveis/hiberden-mcp/releases/download/v1.3.1/hiberden-1.3.1.mcpb",
+      "version": "1.3.1",
+      "fileSha256": "3b466ccf9b3d73bbf92f4e4f0ee2dcac66e483df82d109fbeb5352eafc986aef",
       "transport": {
         "type": "stdio"
       },
