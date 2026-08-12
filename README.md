@@ -75,7 +75,7 @@ multi-process locking hazard.
 All diagnostics go to stderr. stdout carries the JSON-RPC channel; anything
 written to stdout that is not a JSON-RPC message corrupts the stream.
 
-## Linux headless kit (BETA)
+## Linux headless kit
 
 Linux binaries are published on the [releases](../../releases) page and at
 `cdn.hiberden.app`. They are built on Ubuntu 22.04, so they run on Ubuntu
@@ -95,13 +95,17 @@ CLI (`hiberden`) catalogs, archives, verifies and restores with no display
 server and no network — the whole point of the kit is that an air-gapped or
 headless machine can run it.
 
-**What BETA means here, precisely:**
+Linux reached general availability on 2026-08-11 at version 1.3.1, alongside
+Windows. **What that does and does not cover, precisely:**
 
-- **Licensing is not wired on Linux yet.** The kit is unlicensed and
-  unrestricted; entitlement arrives with Linux GA. Nothing you archive now
-  becomes unreadable later: the format and catalog are identical across
+- **Writing a new archive needs a license.** Restoring and verifying never do,
+  license or not. Kits published before GA are ungated and stay that way;
+  entitlement applies from the first post-GA kit onward. Nothing you archive
+  now becomes unreadable later: the format and catalog are identical across
   platforms.
-- **The desktop app is Windows-only today.** Linux is the CLI + connector.
+- **The desktop app runs on Linux too**, as a signed `.deb` and `.AppImage`
+  from [hiberden.app/linux](https://hiberden.app/linux). macOS is not
+  supported yet.
 - **Tape on Linux is unproven on hardware.** The backend targets the
   open-source LTFS implementation and has never run against a drive on any
   platform. Use `HIBERDEN_TAPE_FAKE=1` to exercise the flows without one.
