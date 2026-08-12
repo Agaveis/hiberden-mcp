@@ -1,0 +1,48 @@
+name: Publish to the MCP registry
+
+# Why this exists
+# ---------------
+# The registry entry (io.github.Agaveis/hiberden-mcp) has to be republished by
+# hand on every release, and `mcp-publisher login github` is an interactive
+# device-code flow — which meant the registry drifted (it still advertised
+# 1.1.0 while 1.2.1 shipped). GitHub Actions OIDC authenticates without any
+# human step, because this repo IS the io.github.Agaveis namespace the registry
+# checks. Run this after the release assets are attached, never before: the
+# registry validates that the mcpb in server.json resolves and hashes.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write # the OIDC token IS the registry credential
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the publisher CLI
+        run: |
+          curl -fsSL --retry 3 \
+            "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/').tar.gz" \
+            | tar xz mcp-publisher
+          ./mcp-publisher --version
+
+      - name: Confirm the bundle in server.json actually resolves
+        # A published entry pointing at a missing asset is worse than a stale
+        # one: clients fail at install instead of installing an older version.
+        run: |
+          URL=$(python3 -c "import json;print(json.load(open('server.json'))['packages'][0]['identifier'])")
+          WANT=$(python3 -c "import json;print(json.load(open('server.json'))['packages'][0]['fileSha256'])")
+          echo "checking $URL"
+          curl -fsSL --retry 3 "$URL" -o bundle.mcpb
+          GOT=$(sha256sum bundle.mcpb | cut -d' ' -f1)
+          [ "$GOT" = "$WANT" ] || { echo "::error::server.json fileSha256 $WANT != published $GOT"; exit 1; }
+          echo "hash matches the published asset"
+
+      - name: Authenticate and publish
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
