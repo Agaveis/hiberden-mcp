@@ -32,7 +32,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
-ARG HIBERDEN_MCP_VERSION=1.3.1
+ARG HIBERDEN_MCP_VERSION=1.3.2
 ADD --chmod=0755 \
     https://github.com/Agaveis/hiberden-mcp/releases/download/v${HIBERDEN_MCP_VERSION}/hiberden-mcp-x86_64-unknown-linux-gnu \
     /usr/local/bin/hiberden-mcp
