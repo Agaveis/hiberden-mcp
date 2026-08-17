@@ -91,21 +91,21 @@ chmod +x hiberden-cli-linux-x86_64
 ```
 
 `hiberden-mcp-linux-x86_64` is the same connector as the Windows build. The
-CLI (`hiberden`) catalogs, archives, verifies and restores with no display
-server and no network — the whole point of the kit is that an air-gapped or
-headless machine can run it.
+CLI (`hiberden`) catalogs and archives with no display server and no network —
+the whole point of the kit is that an air-gapped or headless machine can run
+it.
 
 Linux reached general availability on 2026-08-11 at version 1.3.1, alongside
 Windows. **What that does and does not cover, precisely:**
 
-- **Writing a new archive needs a license.** Restoring and verifying never do,
+- **Writing a new archive needs a license.** Reading your data back never does,
   license or not. Kits published before GA are ungated and stay that way;
   entitlement applies from the first post-GA kit onward. Nothing you archive
   now becomes unreadable later: the format and catalog are identical across
   platforms.
 - **The desktop app runs on Linux too**, as a signed `.deb` and `.AppImage`
-  from [hiberden.app/linux](https://hiberden.app/linux). macOS is not
-  supported yet.
+  from [hiberden.app/linux](https://hiberden.app/linux). A macOS beta for
+  Apple Silicon is at [hiberden.app/download](https://hiberden.app/download).
 - **Tape on Linux is unproven on hardware.** The backend targets the
   open-source LTFS implementation and has never run against a drive on any
   platform. Use `HIBERDEN_TAPE_FAKE=1` to exercise the flows without one.
