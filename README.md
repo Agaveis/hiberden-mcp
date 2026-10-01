@@ -104,7 +104,7 @@ Windows. **What that does and does not cover, precisely:**
   now becomes unreadable later: the format and catalog are identical across
   platforms.
 - **The desktop app runs on Linux too**, as a signed `.deb` and `.AppImage`
-  from [hiberden.app/linux](https://hiberden.app/linux). A macOS beta for
+  from [hiberden.app/linux](https://hiberden.app/linux). The macOS build for
   Apple Silicon is at [hiberden.app/download](https://hiberden.app/download).
 - **Tape on Linux is unproven on hardware.** The backend targets the
   open-source LTFS implementation and has never run against a drive on any
