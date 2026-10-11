@@ -1,0 +1,119 @@
+name: Publish to Docker Hub
+
+# Why this exists
+# ---------------
+# Docker Hub is a second home for the connector image, under the agaveis
+# namespace, built from the same Dockerfile the MCP directories build in their
+# sandboxes. GHCR and the MCP Registry entry stay as they are; server.json is
+# not touched here. A Hub repository's overview is its full description and
+# `docker push` does not set it, so the last step uploads README.md through the
+# Hub API: GitHub and Hub then say the same thing.
+#
+# Trigger: a published release, not the tag push. The Dockerfile fetches the
+# connector binary from that release's assets, and a tag push fires before the
+# assets are attached; the release event fires at publish, and the wait step
+# below covers assets uploaded a few minutes after it. `workflow_dispatch`
+# takes a version by hand for a re-run on an existing release.
+#
+# Credentials: the repository variable DOCKERHUB_USERNAME and the secret
+# DOCKERHUB_TOKEN (a Hub personal access token with Read, Write AND Delete
+# scope: the overview update in the last step is refused without Delete).
+# The login action masks the token; nothing here prints it.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Connector release version to package, without the v (for example 1.3.2); its Linux x86_64 release asset must exist"
+        required: true
+        type: string
+      latest:
+        description: "Also move the :latest tag to this version"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: agaveis/hiberden-mcp
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Resolve the version and the tags
+        id: v
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_LATEST: ${{ inputs.latest }}
+        run: |
+          if [ "$EVENT_NAME" = "release" ]; then
+            VERSION="${RELEASE_TAG#v}"
+            LATEST=true
+          else
+            VERSION="${INPUT_VERSION#v}"
+            LATEST="$INPUT_LATEST"
+          fi
+          case "$VERSION" in
+            [0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::version '$VERSION' is not MAJOR.MINOR.PATCH"; exit 1 ;;
+          esac
+          TAGS="$IMAGE:$VERSION"
+          [ "$LATEST" = "true" ] && TAGS="$TAGS,$IMAGE:latest"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+          echo "packaging $VERSION as $TAGS"
+
+      - name: Wait for the release asset the Dockerfile fetches
+        # Up to 10 minutes: assets are sometimes attached after the release is
+        # published. Without the asset the build would fail inside ADD with a
+        # less readable message.
+        env:
+          URL: https://github.com/Agaveis/hiberden-mcp/releases/download/v${{ steps.v.outputs.version }}/hiberden-mcp-x86_64-unknown-linux-gnu
+        run: |
+          for i in $(seq 1 20); do
+            if curl -fsSL --head --retry 2 "$URL" > /dev/null; then
+              echo "asset present: $URL"
+              exit 0
+            fi
+            echo "asset not there yet ($i/20), waiting 30 s"
+            sleep 30
+          done
+          echo "::error::release asset missing: $URL"
+          exit 1
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          # The connector's release assets are Linux x86_64 only, so one platform.
+          platforms: linux/amd64
+          build-args: HIBERDEN_MCP_VERSION=${{ steps.v.outputs.version }}
+          push: true
+          # A plain image, no attestation index: the Hub page then lists one
+          # amd64 image instead of extra "unknown/unknown" entries.
+          provenance: false
+          tags: ${{ steps.v.outputs.tags }}
+
+      - name: Set the Hub overview from README.md
+        uses: peter-evans/dockerhub-description@432a30c9e07499fd01da9f8a49f0faf9e0ca5b77 # v4.0.2
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.IMAGE }}
+          readme-filepath: ./README.md
+          short-description: "Hiberden MCP connector over stdio: the read and verify tool surface, for directory checks"

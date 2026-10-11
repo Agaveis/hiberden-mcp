@@ -196,3 +196,9 @@ generation.
 For testing without a drive, the tape backend can run against a fake backend:
 set `HIBERDEN_TAPE_FAKE=1` (and optionally `HIBERDEN_TAPE_FAKE_ROOT=<dir>` to
 point at a directory standing in for the mounted volume).
+
+**Website:** https://hiberden.app
+
+**Listing and source:** https://github.com/Agaveis/hiberden-mcp
+
+Built and maintained by [AgaveIS](https://agaveis.com), Scottsdale, Arizona.

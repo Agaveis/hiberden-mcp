@@ -24,7 +24,9 @@
 # The binary is fetched rather than built: the connector's source lives in a
 # private workspace alongside the archive engine and is not published here.
 
-FROM debian:bookworm-slim
+# Pinned to the image index digest read on 2026-10-11 (works for every
+# platform in the index). Move the digest on purpose, never by accident.
+FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
 
 # ca-certificates is not needed for the stdio handshake itself; it is included so
 # that cloud-adjacent code paths behave normally if a real catalog is mounted.
