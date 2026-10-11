@@ -161,6 +161,27 @@ printf '%s\n' \
   | HIBERDEN_DB=path/to/catalog.db hiberden-mcp
 ```
 
+## Container image
+
+The image on Docker Hub, `agaveis/hiberden-mcp`, is the same connector binary
+in a `debian:bookworm-slim` container. It carries no catalog: it starts, reports
+itself, and advertises the read-only tool surface, but there are no archives to
+answer questions about. This is not how you run Hiberden. For real use, install
+Hiberden from https://hiberden.app.
+
+The image exists so MCP directories can run their introspection handshake
+(initialize, then tools/list) against the connector in a Linux sandbox, and so
+anyone can inspect the advertised tool surface without installing anything.
+
+To point it at a real catalog, mount one and set `HIBERDEN_DB`:
+
+```sh
+docker run --rm -i -v /var/lib/hiberden:/cat -e HIBERDEN_DB=/cat/catalog.db agaveis/hiberden-mcp
+```
+
+The connector opens it read-only apart from verify's status writes, and never
+reads the OS keyring.
+
 ## Security
 
 - Local-only and closed-domain. The server is read + verify only and performs
