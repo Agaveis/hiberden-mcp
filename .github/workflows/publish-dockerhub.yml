@@ -16,7 +16,8 @@ name: Publish to Docker Hub
 # takes a version by hand for a re-run on an existing release.
 #
 # Credentials: the repository variable DOCKERHUB_USERNAME and the secret
-# DOCKERHUB_TOKEN (a Hub personal access token with read and write scope).
+# DOCKERHUB_TOKEN (a Hub personal access token with Read, Write AND Delete
+# scope: the overview update in the last step is refused without Delete).
 # The login action masks the token; nothing here prints it.
 
 on:
