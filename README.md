@@ -207,7 +207,7 @@ the separate AI client, and credential handling) are in
 
 ## Tape caveat
 
-Tape support is in beta and has not been validated on physical tape hardware in
+Tape support has not been validated on physical tape hardware in
 this implementation. The design never speaks SCSI directly and treats tape as a
 filesystem via LTFS tooling, so any tape the LTFS tooling can mount should work
 by construction. That is an architectural property, not a tested hardware
