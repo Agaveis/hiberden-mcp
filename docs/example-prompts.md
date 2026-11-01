@@ -1,7 +1,7 @@
 # Hiberden MCP: example prompts
 
 Things an operator can say to an AI assistant (Claude Desktop, Claude Code,
-Cursor, Windsurf, ChatGPT, Gemini, and other MCP clients) once the Hiberden MCP
+Cursor, Windsurf, Codex CLI, Gemini CLI, and other MCP clients that run local servers) once the Hiberden MCP
 server is connected. The assistant turns plain language into tool calls against
 your local archive catalog and reports back.
 

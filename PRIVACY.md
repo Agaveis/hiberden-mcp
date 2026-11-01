@@ -82,7 +82,7 @@ return raw file contents.
 
 The Hiberden MCP server contains no AI model and no language model. The
 intelligence comes from the separate AI client you connect, such as Claude
-Desktop, Claude Code, Cursor, Windsurf, ChatGPT, or Gemini. That client brings
+Desktop, Claude Code, Cursor, Windsurf, Codex CLI, or Gemini CLI. That client brings
 its own language model.
 
 When you ask the assistant a question, the client may send your prompt and the
