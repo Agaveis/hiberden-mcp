@@ -5,26 +5,39 @@ Protocol](https://modelcontextprotocol.io) tools over the stdio transport
 (newline-delimited JSON-RPC 2.0).
 
 MCP is an open, vendor-neutral standard, so this one server is drivable from any
-MCP client: Claude Desktop / Claude Code, OpenAI's Agents SDK and ChatGPT
-desktop, Gemini, Cursor, Windsurf, and others. There is no model and no API key
-in this process. The client brings the LLM; this binary only answers tool calls
-against the local catalog. In its default mode it performs no network I/O.
+MCP client that launches local servers over stdio: Claude Desktop / Claude Code,
+OpenAI's Agents SDK and Codex CLI, Gemini CLI, Cursor, Windsurf, and
+others. There is no model and no API key in this process. The client brings the
+LLM; this binary only answers tool calls against the local catalog. It makes no
+network requests of its own.
+
+**Versions.** The Hiberden app (2.0.0, for Windows, macOS and Linux) ships
+connector 2.0.0 inside it. The latest release on this repository's releases
+page, the standalone connector downloads on cdn.hiberden.app and the
+`agaveis/hiberden-mcp` Docker image are connector 1.3.2. Where this README
+describes something the two builds do differently, it names the build.
 
 ## Read + verify by default
 
 The server advertises and answers the read/verify tools below by default, and
-nothing mutates configuration. The only state any default tool ever writes
-is what `verify_copy` records: the copy's status, its verify-pass provenance
-(which algorithm ran, when the last full pass succeeded), and an audit-log
-row for each completed verify — and it only does that after a genuine
-read-back from the medium.
+nothing mutates configuration. At the default tier the server writes what
+`verify_copy` records after it checks the medium (the copy's status, its
+verify-pass provenance, meaning which algorithm ran and when the last full pass
+succeeded, and an audit-log row), an audit-log row for each refused call to a
+tool above the tier, and the catalog's per-file index for an archive written
+before that index existed, built from its local or NAS copy. Connector 1.3.2
+builds that index when `find_file` or `list_archive_files` runs; 2.0.0 builds it
+once, when the server starts. When the server starts it also creates an empty
+catalog if there is none at the path, and opening a catalog from an older
+version brings its schema up to date.
 
 Write and delete tools (catalog management, destinations, policies) ARE
 implemented, but behind a catalog-persisted permission tier that defaults to
-read-only and is only changeable in the Hiberden desktop app's settings; a
-tool above the active tier is neither advertised nor accepted. See
-`docs/Hiberden_MCP_Command_Surface_and_Permission_Model.md` (which supersedes
-`docs/mcp/write-gate-design.md`).
+read-only and is only changeable in the Hiberden desktop app (Settings, then
+MCP, Access level). A tool above the active tier is not advertised, and a call
+to one is refused and recorded in the audit log. Deletes also need a separate
+delete override, off by default. The levels are described at
+<https://hiberden.app/mcp>.
 
 ## Read + verify tools (always on)
 
@@ -36,22 +49,36 @@ tool above the active tier is neither advertised nor accepted. See
 | `coverage_status` | none | Library-wide 3-2-1 roll-up: total archives plus counts in unconfigured, unprotected, in_progress, at_risk, and fully_covered. |
 | `archive_detail` | `archive_id` | Full detail for one archive: project, size, SHA-256, legacy MD5 (if imported), coverage, and every copy with its destination, kind, status, address, and written/verified timestamps. |
 | `list_destinations` | none | Configured destinations (Tape, LocalFs, NAS, Cloud) with id, slot, kind, name, and enabled/retired state. |
-| `list_tapes` | none | Tapes: serial, volume label, uuid, capacity, used bytes, last verified time, and copy count. |
-| `tape_detail` | `serial` | One cartridge by barcode: label, capacity, used bytes, last verified, and the archives stored on it. |
+| `list_policies` | none | Connector 2.0.0 only: every protection policy with its retention, the projects that use it, and each destination it is bound to, with the binding id `remove_binding` takes. |
+| `list_tapes` | none | Tapes: serial, volume label, uuid, capacity, used bytes, and copy count. |
+| `tape_detail` | `serial` | One cartridge by barcode: label, capacity, used bytes, and the archives whose copy starts on it. |
 | `recent_activity` | `limit?` | Recent copy activity, newest first (default 20): each copy's archive, destination, status, and write/verify timestamps. |
 | `find_file` | `query`, `limit?` | Find a file by name/path fragment across every archive, with the archive and every destination it is stored in. |
-| `list_archive_files` | `archive_id`, `offset?`, `limit?` | The file manifest of one archive from the catalog index (path, size, per-file SHA-256), paginated. The report enabler: client-ready deliverable lists and checksum manifests from the index (a one-time backfill may read a local copy of a pre-index archive). Archives with no buildable index (legacy tape-only imports) report `indexed: false` — manifest unavailable, not empty. |
+| `list_archive_files` | `archive_id`, `offset?`, `limit?` | The file manifest of one archive from the catalog index (path, size, per-file SHA-256), paginated. The report enabler: client-ready deliverable lists and checksum manifests from the index (a one-time backfill may read a local copy of a pre-index archive). Archives with no buildable index (legacy tape-only imports) report `indexed: false`: the manifest is unavailable, not empty. |
 | `list_jobs` | `limit?` | Recent background jobs (saves, verifies, restores), newest first: verb, state, archive, destination, bytes, timestamps, and the recorded failure reason on failed/interrupted rows. |
 | `catalog_stats` | none | One-call inventory + capacity roll-up: counts, total archived bytes, copies by status, destinations by kind, tape capacity vs. use. |
-| `verify_copy` | `archive_id`, `destination_id`, `mode?` | Re-reads the copy off its medium and compares it to what was recorded. Default `mode: "full"` re-hashes SHA-256 plus the recorded BLAKE3 and stored signature when present, then stamps the copy Verified on a match, Failed on a mismatch, or Missing if the file is gone — the only pass that can promote. `mode: "fast"` is a BLAKE3-only re-read that sustains an already-Verified copy or exposes a mismatch but never promotes (no recorded fast hash falls back to a full pass, with the reason surfaced). Results and audit rows name the algorithm that ran. |
+| `verify_copy` | `archive_id`, `destination_id`, `mode?` (2.0.0 adds `cold?` for tape) | Re-reads the copy off its medium and compares it to what was recorded. Default `mode: "full"` re-hashes SHA-256 plus the recorded BLAKE3 and stored signature when present, then stamps the copy Verified on a match, Failed on a mismatch, or Missing if the file is not found, with the exceptions below; it is the only pass that can promote. `mode: "fast"` is a BLAKE3-only re-read that sustains an already-Verified copy or exposes a mismatch but never promotes (no recorded fast hash falls back to a full pass, with the reason surfaced). Results and audit rows name the algorithm that ran. |
 
 `verify_copy` is the differentiator: it is proof from the actual medium, not a
-stored flag. Identify the copy by `archive_id` + `destination_id`. It works for
-disk and NAS copies and for tape copies (the cartridge is mounted and read
-back). Cloud (S3) read-back verify runs in the Hiberden desktop app, not here:
-for a cloud copy the tool returns a clear message that the copy was checked in
-the desktop, not here, so it has not passed or failed. That message is a
-not-attempted result, not a verification failure.
+stored flag. Identify the copy by `archive_id` + `destination_id`.
+
+- **Disk and NAS.** The copy is re-read and re-hashed. When a copy's file is not
+  found, connector 2.0.0 marks it Missing only if its location answers, and
+  otherwise changes nothing; 1.3.2 marks it Missing whenever its file is not
+  found, including when its disk is unplugged or its share is off.
+- **Tape.** It re-reads a tape copy stored as a single .tar file, such as one
+  adopted by the `hiberden scan-tape` command. Every tape copy the Hiberden
+  desktop writes is stored in parts, which `verify_copy` cannot read: 2.0.0
+  refuses those copies and changes nothing, and 1.3.2 can mark them Missing, so
+  do not run 1.3.2's `verify_copy` on a tape copy the desktop wrote. On tape,
+  2.0.0 marks a copy Verified only from a cold read, one where it mounted the
+  cartridge itself (`cold: true` unmounts and remounts first). With a different
+  cartridge in the drive, 2.0.0 changes nothing, and it names the cartridge to
+  load when the catalog records which one holds the copy.
+- **Cloud (S3).** Read-back verify runs in the Hiberden desktop app, not here.
+  For a cloud copy the tool returns a message that the copy was not checked
+  here, so it has neither passed nor failed. That is a not-attempted result,
+  not a verification failure.
 
 Adding archives (writing bytes), save, and restore are not exposed here.
 Catalog, destination, and policy configuration tools exist behind the
@@ -64,8 +91,9 @@ The server reads the single catalog shared by the desktop app, the CLI, and this
 server. Path resolution:
 
 1. The `HIBERDEN_DB` environment variable, if set.
-2. Otherwise `%LOCALAPPDATA%\Hiberden\catalog.db` on Windows, or
-   `~/.hiberden/catalog.db` on Linux.
+2. Otherwise `%LOCALAPPDATA%\Hiberden\catalog.db` on Windows,
+   `~/Library/Application Support/Hiberden/catalog.db` on macOS (connector
+   2.0.0, inside the Hiberden app), or `~/.hiberden/catalog.db` on Linux.
 
 The catalog is opened fresh per tool call (sub-millisecond) rather than held for
 the process lifetime. With WAL mode and a busy timeout, the desktop app and this
@@ -90,8 +118,9 @@ chmod +x hiberden-cli-linux-x86_64
 ./hiberden-cli-linux-x86_64 --version
 ```
 
-`hiberden-mcp-linux-x86_64` is the same connector as the Windows build. The
-CLI (`hiberden`) catalogs and archives with no display server and no network —
+`hiberden-mcp-linux-x86_64` is connector 1.3.2, the same build as the Windows
+bundle on the releases page. The
+CLI (`hiberden`) catalogs and archives with no display server and no network;
 the whole point of the kit is that an air-gapped or headless machine can run
 it.
 
@@ -110,8 +139,8 @@ Windows. **What that does and does not cover, precisely:**
   open-source LTFS implementation and has never run against a drive on any
   platform. Use `HIBERDEN_TAPE_FAKE=1` to exercise the flows without one.
 - Archives are signed by a per-install Ed25519 identity stored under
-  `~/.hiberden/keys/` (owner-only). It is the same custody model as the OS
-  keyrings on other platforms, and no stronger: it is not hardware-backed.
+  `~/.hiberden/keys/` (owner-only). Like the OS keyrings on other platforms, it
+  keeps the key from other users on the machine; it is not hardware-backed.
 
 ## Setup
 
@@ -127,7 +156,7 @@ hiberden-mcp help             # show usage
 `install` writes (or updates) an `mcpServers.hiberden` entry pointing at this
 executable. It is zero-config for the catalog: the entry only pins `HIBERDEN_DB`
 when you already have it set in your environment, otherwise it relies on the
-default `%LOCALAPPDATA%\Hiberden\catalog.db` path.
+default path for this computer (see Catalog selection above).
 
 ### Manual configuration
 
@@ -179,18 +208,21 @@ To point it at a real catalog, mount one and set `HIBERDEN_DB`:
 docker run --rm -i -v /var/lib/hiberden:/cat -e HIBERDEN_DB=/cat/catalog.db agaveis/hiberden-mcp
 ```
 
-The connector opens it read-only apart from verify's status writes, and never
-reads the OS keyring.
+The connector reads that catalog. At the default tier it writes what a verify
+records, its audit-log rows and the per-file index for older archives; the write
+tools unlock only if the catalog's own tier allows them.
 
 ## Security
 
-- Local-only and closed-domain. The server is read + verify only and performs
-  zero network I/O; the only state it writes is the copy status `verify_copy`
-  stamps after a read-back. It never sends data to Hiberden or any third party.
+- Local-only and closed-domain. At the default tier the server reads and
+  verifies; write and delete tools unlock only behind the tier set in the
+  desktop. It makes no network requests of its own and never sends data to
+  Hiberden or any third party.
 - No API key and no LLM are stored in the binary, so there is nothing to steal
   there.
-- `verify_copy` gives ground-truth physical state: it re-reads and re-hashes the
-  actual medium, so even a manipulated assistant cannot fabricate a "Verified".
+- `verify_copy` gives ground-truth physical state for a disk or NAS copy: it
+  re-reads and re-hashes the actual medium, so even a manipulated assistant
+  cannot fabricate a "Verified".
 - Tool annotations (`readOnlyHint`, `destructiveHint`, and so on) are hints, not
   guarantees. Prompt injection is an unsolved industry-wide problem. The
   architecture here is conservative by design; that is not a claim of immunity.
@@ -198,10 +230,9 @@ reads the OS keyring.
 ## Privacy
 
 The server runs entirely on your own machine, holds no account or API key, and
-in its default read-and-verify mode performs zero network I/O — it never sends
-your catalog or your files to Hiberden or any third party. The only state any
-default tool writes is the copy status `verify_copy` stamps after a genuine
-read-back. Full details (what the server reads, what it never does, the role of
+makes no network requests of its own: it never sends your catalog or your files
+to Hiberden or any third party. What it writes at the default tier is listed
+under "Read + verify by default" above. Full details (what the server reads, what it never does, the role of
 the separate AI client, and credential handling) are in
 [PRIVACY.md](./PRIVACY.md), hosted at <https://hiberden.app/mcp/privacy>.
 
@@ -209,8 +240,7 @@ the separate AI client, and credential handling) are in
 
 Tape support has not been validated on physical tape hardware in
 this implementation. The design never speaks SCSI directly and treats tape as a
-filesystem via LTFS tooling, so any tape the LTFS tooling can mount should work
-by construction. That is an architectural property, not a tested hardware
+filesystem via LTFS tooling. That is an architectural property, not a tested hardware
 matrix. Do not read these notes as a guarantee for any specific drive or
 generation.
 
