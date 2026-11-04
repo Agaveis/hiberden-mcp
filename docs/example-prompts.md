@@ -1,7 +1,7 @@
 # Hiberden MCP: example prompts
 
 Things an operator can say to an AI assistant (Claude Desktop, Claude Code,
-Cursor, Windsurf, ChatGPT, Gemini, and other MCP clients) once the Hiberden MCP
+Cursor, Windsurf, Codex CLI, Gemini CLI, and other MCP clients that run local servers) once the Hiberden MCP
 server is connected. The assistant turns plain language into tool calls against
 your local archive catalog and reports back.
 
@@ -12,14 +12,14 @@ own way. The assistant picks the tool, you do not name it.
 Two important facts up front:
 
 - **Read-only by default.** Out of the box the server can list, inspect, and
-  verify your archives — it cannot change your setup. Catalog-organization
+  verify your archives; it cannot change your setup. Catalog-organization
   write tools (projects, Collections, destinations, policies) exist behind an
   opt-in permission level you raise in the Hiberden desktop under
   Settings → MCP, and deletes have their own additional switch; every write is
   audited. Saving bytes to media and restoring always stay in the desktop app.
 - **Verify means a real read-back.** When you ask the assistant to prove a copy
-  is good, it does not read a stored flag. It re-reads the bytes off the disk,
-  NAS, or tape, recomputes the SHA-256, and compares it to the recorded hash. A
+  is good, it does not read a stored flag. It re-reads the bytes off the disk or
+  NAS, recomputes the SHA-256, and compares it to the recorded hash. A
   "Verified" answer is proof from a fresh read-back, not a stored flag.
 
 ---
@@ -119,7 +119,7 @@ it: it reads the copy back and re-hashes it.
 copy is really there?"**
 Tools: `list_archives` or `archive_detail` to confirm the three copies and their
 recorded status, then `verify_copy` on the NAS copy. What happens: `verify_copy`
-mounts and re-reads that copy off the NAS, recomputes its SHA-256, and compares
+re-reads that copy off the NAS, recomputes its SHA-256, and compares
 it to the archive's recorded hash. On a match it stamps the copy Verified and
 reports the proof (the computed hash equals the expected hash, and the byte count
 read back). On a mismatch it stamps Failed. If the file is gone it stamps
@@ -131,11 +131,14 @@ the Hiberden desktop app, not through the assistant, so it has not passed or
 failed here: it was not checked here. That is honesty about scope, not a failure.
 
 **"Re-verify the tape copy of archive 17."**
-Tool: `verify_copy` (tape). What happens: the cartridge is mounted and the copy
-is read back through the tape path, re-hashed, and compared. Good answer: a clear
-Verified or Failed with the computed versus expected SHA-256. (Tape support is in
-beta: the read-back path has not been validated on physical tape hardware in this
-implementation, so behavior on a real drive is expected but not yet proven.)
+Tool: `verify_copy` (tape). What happens: a tape copy stored as a single .tar
+file, such as one adopted with `hiberden scan-tape`, is read back off the
+cartridge, re-hashed, and compared, and a good answer gives the result with the
+computed versus expected SHA-256. Every tape copy the Hiberden desktop writes is
+stored in parts, which `verify_copy` cannot read: connector 2.0.0, inside the
+Hiberden app, says so and leaves the copy's status as it was, and 1.3.2 can mark
+such a copy Missing, so run 1.3.2's `verify_copy` on tape only for scan-adopted
+copies. Tape support has not been validated on physical tape hardware.
 
 **"Check that the local disk copy of the Garcia engagement gallery still
 matches."**
@@ -154,30 +157,29 @@ This is a deliberate boundary, not an error.
 
 ## E. Tape questions
 
-**"Which tapes do I have, and when was each one last verified?"**
+**"Which tapes do I have, and how full is each one?"**
 Tool: `list_tapes`. Good answer: each tape by serial and volume label, its
-capacity and how much is used, how many copies live on it, and when it was last
-verified, so you can spot a cartridge that has not been checked in a long time.
+capacity and how much is used, and how many copies start on it.
 
 **"Which tape is getting full?"**
 Tool: `list_tapes`. Good answer: each tape's used versus total bytes, with the
 ones nearing capacity called out.
 
-**"What's on tape HIB001L9?"** (or "How many archives are on tape serial
+**"What's on tape HIB001L9?"** (or "How many archives start on tape serial
 LTO000042, and which ones?")
-Tool: `tape_detail` (by serial). Good answer: the tape's label, capacity, used
-space, and last-verified time, its total copy count, and the list of archives
-that have a copy on that cartridge, each by name, project, and size. This turns
-"what is on this barcode?" into a real contents list, not just a number.
+Tool: `tape_detail` (by serial). Good answer: the tape's label, capacity, and
+used space, its copy count, and the list of archives whose copy starts on that
+cartridge, each by name, project, and size. An archive that continues onto this
+cartridge from an earlier one is listed under the cartridge it starts on.
 
 ---
 
 ## F. Setup and write actions
 
-Out of the box the assistant cannot change anything. If you raise the LLM
-Command Permissions level in the Hiberden desktop (Settings → MCP), it can also
-organize the catalog on request — create projects and Collections, move
-archives, create destinations and policies, assign policies — and, only with
+Out of the box the assistant cannot change your setup. If you raise the
+Access level in the Hiberden desktop (Settings → MCP), it can also
+organize the catalog on request (create projects and Collections, move
+archives, create destinations and policies, assign policies) and, only with
 the separate delete override, remove catalog entries. Every write lands in the
 catalog's audit log with the permission level in effect. Saving new archives to
 media and restoring files always stay in the desktop app.
@@ -187,7 +189,7 @@ media and restoring files always stay in the desktop app.
 ## G. Reports and deliverables
 
 The catalog holds a per-file index of your archives (paths, sizes, per-file
-SHA-256 — built at write time, or backfilled from a local copy for older
+SHA-256; built at write time, or backfilled from a local copy for older
 archives), so the assistant can produce any report format you can describe.
 There is no separate export feature to wait for: the AI client is the export
 feature. One honest limit: an archive imported from a legacy tape library with
@@ -197,13 +199,13 @@ unavailable rather than pretend the archive is empty.
 **"Make me a client-ready manifest of the Q3_Masters archive with per-file
 checksums."**
 Tools: `archive_detail` + `list_archive_files`. Good answer: a formatted
-manifest (markdown table, CSV, or print-ready text — whatever you asked for)
+manifest (markdown table, CSV, or print-ready text, whatever you asked for)
 listing every file with its size and SHA-256, plus the archive-level hash and
 where its verified copies live.
 
 **"How much am I storing, and where?"**
 Tool: `catalog_stats`. Good answer: totals (projects, archives, bytes), stored
-copies by status, destinations by kind, and tape capacity against use — ready
+copies by status, destinations by kind, and tape capacity against use, ready
 to paste into a status report.
 
 **"Build an insurance schedule: every archive, its size, hash, and the media
@@ -233,9 +235,8 @@ destination).
   or pass an id by hand. If it needs an id (for example which destination to
   verify), it will look it up first or ask.
 - The server reads from a single local SQLite catalog shared with the Hiberden
-  desktop app and CLI. It opens the catalog only for the moment of each call, so
+  desktop app and CLI. It opens the catalog when it starts and for each call, so
   the desktop and the assistant can run at the same time.
-- The server does no network I/O on its own. At the default read-only level the
-  only tool that writes anything is `verify_copy`, and it only ever stamps a
-  status after a genuine read-back; the opt-in write levels are described in
-  section F.
+- The server makes no network requests of its own. At the default read-only
+  level the only tool that changes a copy's status is `verify_copy`, and only
+  after it checks the medium; the opt-in write levels are described in section F.
